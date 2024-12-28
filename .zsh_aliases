@@ -1,0 +1,146 @@
+# General
+alias md='function _mkdircd() { mkdir -p "$1" && cd "$1"; }; _mkdircd' # create a directory and cd into it
+alias c="code ."  # open vscode, because typing is hard
+alias cl="clear"
+alias b="cd ../"
+alias bb="cd ../../"
+
+# create parent directories if they don't exist already 
+# example: mkdir -p .github/workflows
+alias mkdir='mkdir -p' 
+
+
+# Add a note to markdown reading list file
+append_note() {
+    if [ -z "$1" ]; then
+        echo "Usage: append_note 'Your note here'"
+        return 1
+    fi
+    echo "$1" >> "$HOME/Desktop/Aidan's Notes/CS Reading List.md"
+    echo "Added to reading list"
+}
+
+# Create an alias for the function
+alias rl=append_note
+
+# Git
+alias gcp='f() { git add . && git commit -m "$1" && git push origin $(git branch --show-current); }; f'
+alias gcm='f() { git add . && git commit -m "$1"; }; f'
+alias gpu='git push origin $(git branch --show-current)'
+alias gpl='git pull origin $(git branch --show-current)'
+alias gho='git remote get-url origin | xargs open'
+alias gs='git status'
+alias gc="git branch | fzf --preview 'git show --color=always {-1}' | cut -c 3- | xargs git checkout"
+# UI for deleting branches, use tab to select multiple branches
+alias gd="git branch | fzf --multi --preview 'git log --oneline --color=always {-1}' | cut -c 3- | xargs -r git branch -D" 
+
+# zsh
+alias zshc="code ~/.zshrc"
+alias zshs="source ~/.zshrc && echo 'Zsh config reloaded' && mv ~/.zsh_aliases ~/Desktop/Projects/config/.zsh_aliases && echo 'Zsh aliases copied to git repo at ~/Desktop/Projects/config/.zsh_aliases'"
+alias zsha="code ~/.zsh_aliases"
+
+# ssh keys
+alias sshc="ssh root@24.199.125.59"
+
+# Add from config repository
+# Usage: ca <filename> [--output <directory>] [--replace]
+# default behavior is to not replace existing files
+ca() {
+  # Base URL for your GitHub config repository
+  local base_url="https://raw.githubusercontent.com/aidansunbury/config/main"
+
+  # Initialize variables
+  local file=""
+  local output_dir="."
+  local replace=false
+
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --output)
+        output_dir="$2"
+        shift 2
+        ;;
+      --replace)
+        replace=true
+        shift
+        ;;
+      *)
+        file="$1"
+        shift
+        ;;
+    esac
+  done
+
+  # Check if a filename is provided
+  if [ -z "$file" ]; then
+    echo "Error: Please specify a filename."
+    return 1
+  fi
+
+  # Ensure the output directory exists
+  mkdir -p "$output_dir"
+
+  # Full path to the output file
+  local output_file="${output_dir}/${file}"
+  local url="${base_url}/${file}"
+
+  # Check if the file already exists
+  if [ -f "$output_file" ] && ! $replace; then
+    echo "Error: $output_file already exists. Use --replace to overwrite."
+    return 1
+  fi
+
+  # Use curl to download the file, and handle errors if it doesn't exist
+  if curl -f -o "$output_file" "$url"; then
+    echo "$output_file has been downloaded successfully from $url"
+  else
+    echo "Error: File $file not found at $url."
+    return 1
+  fi
+}
+
+# Add biome to project
+add_biome() {
+  ca biome.jsonc
+  bun add --dev --exact @biomejs/biome@1.9.4
+  echo "Biome added to project"
+
+  # Add workflow
+  mkdir -p .github/workflows
+  ca biome-check.yml --output .github/workflows
+  echo "Biome check workflow added"
+
+  echo "Be sure to add the following scripts to your package.json"
+  echo '"biome:check": "bunx biome check",'
+  echo '"biome:check:fix": "bunx biome check --write --unsafe",'
+  rm prettier.config.js .eslintrc.cjs .prettierrc .prettierignore
+}
+alias bi=add_biome
+
+# rerun last command and copy output to cliboard
+alias recopy="fc -ln -1 | sh | pbcopy && echo 'Last command rerun and output copied to clipboard'"
+
+# Scaffold a t3 app with preferred options, and pass in a name for the application
+# also adds common shadcn components and biome
+t3() {
+    local appName="$1"
+    bunx create-t3-app@latest --CI --trpc --nextAuth --tailwind --drizzle --appRouter --dbProvider postgres "$appName"
+    cd "$appName"
+    bi
+    bunx --bun shadcn@latest init
+    bunx --bun shadcn@latest add accordion avatar badge button card checkbox command table calendar dialog form input label popover select tabs textarea toast toggle tooltip
+    bun add @tanstack/react-query-devtools
+    echo "Add the following two lines to src/trpc/react.tsx"
+    echo "import { ReactQueryDevtools } from '@tanstack/react-query-devtools'"
+    echo "<ReactQueryDevtools initialIsOpen={false} />"
+}
+
+# add a shadcn component
+alias shad="bunx --bun shadcn@latest add"
+
+# view available package.json scripts
+alias scripts='cat package.json | jq ".scripts"'
+
+
+#* control + r = command history
